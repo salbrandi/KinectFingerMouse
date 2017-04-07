@@ -1,0 +1,170 @@
+//--------------------------------IMPORTS--------------------------------//
+import KinectPV2.KJoint;
+import KinectPV2.*;
+import java.awt.*;
+import java.awt.event.*; 
+
+Robot robot;
+
+KinectPV2 kinect;
+
+Skeleton [] skeleton;
+
+boolean finger = false;
+//-----------------------Coordinate Variables--------------------------//
+int dT = 3;
+int recP = 0;
+int x1 = 0;
+int x2 = 0;
+int x3 = 0;
+int x4 = 0;
+int y1 = 0;
+int y2 = 0;
+int y3 = 0;
+int y4 = 0;
+
+//---------------------------SETUP-----------------------------------//
+void setup() {
+  size(displayWidth, displayHeight, P3D); // set size to computer screen, 3-Dimensional
+
+  kinect = new KinectPV2(this);
+
+  kinect.enableSkeleton(true);
+  kinect.enableSkeletonDepthMap(true);
+  kinect.enableBodyTrackImg(true);
+  kinect.init(); //initialize kinect
+
+    try {
+    robot = new Robot();
+    robot.setAutoDelay(0);
+  } 
+  catch (Exception e) {
+    e.printStackTrace();
+  } // initialize robot() class
+
+  background(0); // draw background
+
+  key = 'k'; //set the key to an irrelevant one
+  kinect.enableColorImg(true);
+}
+
+
+
+//------------------------------DRAW--------------------------------//
+void draw() {  
+  drawPrompt();
+
+  skeleton =  kinect.getSkeletonDepthMap();
+
+
+  for (int i = 0; i < skeleton.length; i++) { // check the skeleton list and for each 
+    if (skeleton[i].isTracked()) {
+      KJoint[] joints = skeleton[i].getJoints();
+      drawHandState(joints[KinectPV2.JointType_HandRight]);
+      float rX = joints[KinectPV2.JointType_HandTipRight].getX();
+      float rY = joints[KinectPV2.JointType_HandTipRight].getY();
+      float rZ = joints[KinectPV2.JointType_HandTipRight].getZ();
+      float mX = map(rX, x1, x2, 0, width + 4000) - 100;
+      float mY = map(rY, y1, y4, 0, height + 4000) - 100;
+      int iRX = (int) mX;
+      int iRY = (int) mY;
+      ellipse(iRX, iRY, 15, 15);
+      //First Corner
+      if (recP == 1 && dT == 1) {
+        x1 = (int) iRX;
+        y1 = (int) iRY;
+        ellipse(x1, y1, 50, 50);
+        dT = 2;
+      }
+      //Second Corner
+      if (recP == 2 && dT == 1) {
+        x2 = (int) iRX;
+        y2 = (int) iRY;
+        ellipse(x2, y2, 50, 50);
+        dT = 2;
+      }
+      //Third Corner
+      if (recP == 3 && dT == 1) {
+        x3 = (int) iRX;
+        y3 = (int) iRY;
+        ellipse(x3, y3, 50, 50);
+        dT = 2;
+      }
+      //Fourth Corner
+      if (recP == 4 && dT == 1) {
+        x4 = (int) iRX;
+        y4 = (int) iRY;
+        background(0);
+        fill(255, 0, 0);
+        x1 = x4;
+        y1 = y2;
+        x2 = x3;
+        y4 = y3;
+        recP = 5;
+        dT = 2;
+      }
+      if (recP == 5) drawRect();
+
+      println(recP);
+
+      if (finger == true) robot.mouseMove(iRX, iRY); //if lasso, allow mouse movement
+    }
+  }
+}
+//Draw solid rectangle
+void drawRect() {
+  int rW = x2 - x1;
+  int rH = y3 - y2;
+  rect(x1, y1, rW, rH);
+}
+
+void handState(int handState) {
+  switch(handState) {
+  case KinectPV2.HandState_Open:
+    finger = false;
+    fill(0, 255, 0, 120);
+    stroke(0, 255, 0, 120);
+    if (dT == 2) {
+      dT = 3;
+    }
+    break;
+
+  case KinectPV2.HandState_Closed:
+    fill(255, 0, 0, 120);
+    stroke(255, 0, 0, 120);
+    if (recP < 4) {
+      recP++; 
+      if (dT == 3) {
+        dT = 1;
+      }
+      finger = false;
+      break;
+    }
+  case KinectPV2.HandState_Lasso:
+    fill(0, 0, 255, 120); 
+    stroke(0, 0, 255, 120); 
+    finger = true;
+    break;
+  case KinectPV2.HandState_NotTracked:
+    finger = false;
+    fill(255);
+    stroke(100, 100, 100, 120);
+
+    break;
+  }
+}
+void drawHandState(KJoint joint) {
+  handState(joint.getState());
+  pushMatrix();
+  translate(joint.getX(), joint.getY(), joint.getZ());
+  popMatrix();
+}
+void drawPrompt() {
+  background(0);
+  if (recP < 3) {
+    stroke(255);
+    text("You have not defined your canvas! Please make a fist to set corner number " + (recP + 1) + "!", width/3, height/2);
+  } else {
+    text("Canvas Calibrated", width/3, height/2);
+  }
+}
